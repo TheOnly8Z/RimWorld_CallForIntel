@@ -1,4 +1,6 @@
 # RimWorld_CallForIntel
+![](https://i.imgur.com/xetaZCB.png)
+
 Desperate for a quest item? Itching for a bandit camp to fight? With this mod, you can call other factions to get quests at will!
 
 ## Workshop Page
