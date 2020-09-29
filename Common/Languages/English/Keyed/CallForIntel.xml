@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<LanguageData>
+    <RequestIntel>Request intelligence</RequestIntel>
+    <ChooseIntelKind>{0} asks what kind of intelligence you want.</ChooseIntelKind>
+
+    <IntelKindPlace>Locations of interest ({0} goodwill)</IntelKindPlace>
+    <IntelKindTrade>Trading deals ({0} goodwill)</IntelKindTrade>
+    <IntelKindPawn>Refugees and slaves ({0} goodwill)</IntelKindPawn>
+    <IntelKindCombat>Hostile activity ({0} goodwill)</IntelKindCombat>
+
+    <!-- Vanilla Factions Expanded -->
+    <IntelKindHunt>Legendary creatures ({0} goodwill)</IntelKindHunt>
+    <IntelKindBounty>Bounties ({0} goodwill)</IntelKindBounty>
+
+    <IntelSent>{0} agrees, and says they will send over any relevant information shortly.</IntelSent>
+
+    <GoodwillChangedReason_RequestedIntel>requested intelligence</GoodwillChangedReason_RequestedIntel>
+
+    <IntelFailedLabel>No intel available</IntelFailedLabel>
+    <IntelFailedDialouge>{0} calls back and apologizes, claiming they could not find the intel you wanted.\n\nYou will have to wait a while before asking again, but no goodwill was lost.</IntelFailedDialouge>
+</LanguageData>
