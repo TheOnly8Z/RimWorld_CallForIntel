@@ -4,9 +4,8 @@ using RimWorld.QuestGen;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
+
 using Verse;
-using VFE_Settlers.Workers;
 
 namespace CallForIntel
 {
@@ -16,7 +15,7 @@ namespace CallForIntel
     {
         static MyPatcher()
         {
-            Harmony harmony = new Harmony("rimworld.8z.callforintel");
+            Harmony harmony = new Harmony("com.theonly8z.callforintel");
             harmony.PatchAll();
         }
 
@@ -24,6 +23,7 @@ namespace CallForIntel
 
     // A class that holds an action (function that generates intel) and a relative weight
     // Used to generate a intel for a specfic choice when multiple are possible
+
     public class WeightedIntel
     {
         public int weight;
@@ -57,16 +57,31 @@ namespace CallForIntel
             // Best to pop a notification or something
             faction.lastTraderRequestTick = Find.TickManager.TicksGame;
             Find.LetterStack.ReceiveLetter("IntelFailedLabel", "IntelFailedDialouge".Translate(faction.leader).CapitalizeFirst(), LetterDefOf.NeutralEvent);
-
         }
     }
 
+#if V12
     [HarmonyPatch(typeof(FactionDialogMaker))]
     [HarmonyPatch("FactionDialogFor")]
+#elif V13
+    [HarmonyPatch(typeof(FactionDialogMaker), nameof(FactionDialogMaker.FactionDialogFor))]
+#endif
     public static class FactionDialogMakerPatch
     {
 
         static string[] VikingHunts = { "VFEV_FenrirHunt", "VFEV_LothurrHunt", "VFEV_NjorunHunt", "VFEV_OdinHunt", "VFEV_ThrumboHunt" };
+
+        static void ChargeGoodwill(Faction faction, int amount)
+        {
+            faction.lastTraderRequestTick = Find.TickManager.TicksGame;
+
+            // Function changed in 1.3 to use a HistoryEventDef instead of a translation string for "reason".
+#if V12
+            faction.TryAffectGoodwillWith(Faction.OfPlayer, -amount, canSendMessage: false, canSendHostilityLetter: true, "GoodwillChangedReason_RequestedIntel".Translate());
+#elif V13
+            faction.TryAffectGoodwillWith(Faction.OfPlayer, -amount, canSendMessage: false, canSendHostilityLetter: true, (HistoryEventDef)GenDefDatabase.GetDef(typeof(HistoryEventDef), "RequestedIntel"));
+#endif
+        }
 
         static void GenerateIntelQuest(Faction faction, string name, int goodwill)
         {
@@ -75,8 +90,7 @@ namespace CallForIntel
             slate.Set("asker", faction.leader);
             Quest newQuest = QuestUtility.GenerateQuestAndMakeAvailable(DefDatabase<QuestScriptDef>.GetNamed(name), slate);
             QuestUtility.SendLetterQuestAvailable(newQuest);
-            faction.lastTraderRequestTick = Find.TickManager.TicksGame;
-            faction.TryAffectGoodwillWith(Faction.OfPlayer, -goodwill, canSendMessage: false, canSendHostilityLetter: true, "GoodwillChangedReason_RequestedIntel".Translate());
+            ChargeGoodwill(faction, -goodwill);
         }
 
         static void GenerateIntelIncident(Faction faction, string name, IncidentParms parms, int goodwill)
@@ -85,8 +99,7 @@ namespace CallForIntel
             bool execute = incident.Worker.TryExecute(parms);
             if (execute)
             {
-                faction.lastTraderRequestTick = Find.TickManager.TicksGame;
-                faction.TryAffectGoodwillWith(Faction.OfPlayer, -goodwill, canSendMessage: false, canSendHostilityLetter: true, "GoodwillChangedReason_RequestedIntel".Translate());
+                ChargeGoodwill(faction, -goodwill);
             } else
             {
                 // It is possible to fail a incident execution, in which case we do not charge goodwill
