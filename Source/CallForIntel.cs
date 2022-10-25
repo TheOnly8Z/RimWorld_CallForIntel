@@ -60,10 +60,129 @@ namespace CallForIntel
         }
     }
 
+
+    public class Intel
+    {
+        public static List<Intel> PotentialIntel;
+
+        public Intel(string name, int cost, bool isIncident = false)
+        {
+            this.name = name;
+            this.isIncident = isIncident;
+            this.cost = cost;
+            this.factions = null;
+        }
+        public Intel(string name, int cost, List<string> factions, bool isIncident = false)
+        {
+            this.name = name;
+            this.isIncident = isIncident;
+            this.cost = cost;
+            this.factions = factions;
+        }
+        public Intel(List<string> names,  int cost, bool isIncident = false)
+        {
+            this.names = names;
+            this.isIncident = isIncident;
+            this.cost = cost;
+            this.factions = null;
+        }
+        public Intel(List<string> names, int cost, List<string> factions, bool isIncident = false)
+        {
+            this.names = names;
+            this.isIncident = isIncident;
+            this.cost = cost;
+            this.factions = factions;
+        }
+        public Intel(Action action, int cost)
+        {
+            this.action = action;
+            this.cost = cost;
+            this.factions = null;
+        }
+        public Intel(Action action, int cost, List<string> factions)
+        {
+            this.action = action;
+            this.cost = cost;
+            this.factions = factions;
+        }
+
+        string name;
+        List<string> names;
+        bool isIncident = false;
+
+        public Action action;
+
+        int cost;
+        List<string> factions;
+
+
+        // Override
+        public bool ShouldInclude(Faction faction, Pawn negotiator)
+        {
+            if (factions != null && !factions.Contains(faction.def.defName))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        public void Activate(Faction faction)
+        {
+            if (names != null)
+            {
+                name = names.RandomElement();
+            }
+
+            if (action != null)
+            {
+                action.Invoke();
+            } else if (isIncident)
+            {
+                var parms = new IncidentParms();
+                IncidentDef incident = DefDatabase<IncidentDef>.GetNamed(name);
+                bool execute = incident.Worker.TryExecute(parms);
+                if (execute)
+                {
+                    FactionDialogMakerPatch.ChargeGoodwill(faction, -cost);
+                }
+                else
+                {
+                    // It is possible to fail a incident execution, in which case we do not charge goodwill
+                    faction.lastTraderRequestTick = Find.TickManager.TicksGame;
+                    Find.LetterStack.ReceiveLetter("IntelFailedLabel", "IntelFailedDialouge".Translate(faction.leader).CapitalizeFirst(), LetterDefOf.NeutralEvent);
+                }
+            } else
+            {
+                Slate slate = new Slate();
+                slate.Set("points", StorytellerUtility.DefaultThreatPointsNow(Find.World));
+                slate.Set("asker", faction.leader);
+                Quest newQuest = QuestUtility.GenerateQuestAndMakeAvailable(DefDatabase<QuestScriptDef>.GetNamed(name), slate);
+                QuestUtility.SendLetterQuestAvailable(newQuest);
+                FactionDialogMakerPatch.ChargeGoodwill(faction, -cost);
+            }
+        }
+
+        public List<Intel> GetMatchingIntel(Faction faction, Pawn negotiator)
+        {
+            List<Intel> matching = new List<Intel>();
+            foreach (Intel intel in PotentialIntel)
+            {
+                if (intel.ShouldInclude(faction, negotiator))
+                {
+                    matching.Add(intel);
+                }
+            }
+
+            return matching;
+        }
+
+    }
+
 #if V12
     [HarmonyPatch(typeof(FactionDialogMaker))]
     [HarmonyPatch("FactionDialogFor")]
-#elif V13
+#elif V13 || V14
     [HarmonyPatch(typeof(FactionDialogMaker), nameof(FactionDialogMaker.FactionDialogFor))]
 #endif
     public static class FactionDialogMakerPatch
@@ -71,14 +190,14 @@ namespace CallForIntel
 
         static string[] VikingHunts = { "VFEV_FenrirHunt", "VFEV_LothurrHunt", "VFEV_NjorunHunt", "VFEV_OdinHunt", "VFEV_ThrumboHunt" };
 
-        static void ChargeGoodwill(Faction faction, int amount)
+        public static void ChargeGoodwill(Faction faction, int amount)
         {
             faction.lastTraderRequestTick = Find.TickManager.TicksGame;
 
             // Function changed in 1.3 to use a HistoryEventDef instead of a translation string for "reason".
 #if V12
             faction.TryAffectGoodwillWith(Faction.OfPlayer, -amount, canSendMessage: false, canSendHostilityLetter: true, "GoodwillChangedReason_RequestedIntel".Translate());
-#elif V13
+#else
             faction.TryAffectGoodwillWith(Faction.OfPlayer, -amount, canSendMessage: false, canSendHostilityLetter: true, (HistoryEventDef)GenDefDatabase.GetDef(typeof(HistoryEventDef), "RequestedIntel"));
 #endif
         }
@@ -136,7 +255,11 @@ namespace CallForIntel
             if (num > 0)
             {
                 DiaOption failTime = new DiaOption(requestIntelString);
+#if V14
+                failTime.Disable("WaitTime".Translate(GenDate.ToStringTicksToPeriod(num)));
+#else
                 failTime.Disable("WaitTime".Translate(num.ToStringTicksToPeriod()));
+#endif
                 __result.options.Insert(__result.options.Count - 1, failTime);
                 return;
             }
@@ -179,6 +302,19 @@ namespace CallForIntel
                 nodeChoose.options.Add(optionBounty);
             }
 
+            // If Ideology is installed, work camps can be found
+#if !V12
+            if (ModLister.IdeologyInstalled)
+            {
+                DiaOption optionCamp = new DiaOption("IntelKindCamp".Translate(5));
+                optionCamp.link = nodeSent;
+                optionCamp.action = delegate
+                {
+                    GenerateIntelQuest(faction, "OpportunitySite_WorkSite", 5);
+                };
+                nodeChoose.options.Add(optionCamp);
+            }
+#endif
             // Combat quests
             DiaOption optionCombat = new DiaOption("IntelKindCombat".Translate(10));
             optionCombat.link = nodeSent;
@@ -205,6 +341,14 @@ namespace CallForIntel
                     {
                         IncidentParms parm = new IncidentParms();
                         GenerateIntelIncident(faction, "PrisonCampLGE", parm, 10);
+                    }));
+                }
+
+                if (ModLister.RoyaltyInstalled)
+                {
+                    list.Add(new WeightedIntel(30, delegate
+                    {
+                        GenerateIntelQuest(faction, "Mission_BanditCamp", 10);
                     }));
                 }
 

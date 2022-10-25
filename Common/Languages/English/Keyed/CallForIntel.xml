@@ -8,6 +8,9 @@
     <IntelKindPawn>Refugees and slaves ({0} goodwill)</IntelKindPawn>
     <IntelKindCombat>Hostile activity ({0} goodwill)</IntelKindCombat>
 
+    <!-- Ideology -->
+    <IntelKindCamp>Work camps ({0} goodwill)</IntelKindCamp>
+
     <!-- Vanilla Factions Expanded -->
     <IntelKindHunt>Legendary creatures ({0} goodwill)</IntelKindHunt>
     <IntelKindBounty>Bounties ({0} goodwill)</IntelKindBounty>
