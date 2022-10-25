@@ -182,7 +182,7 @@ namespace CallForIntel
 #if V12
     [HarmonyPatch(typeof(FactionDialogMaker))]
     [HarmonyPatch("FactionDialogFor")]
-#elif V13 || V14
+#else
     [HarmonyPatch(typeof(FactionDialogMaker), nameof(FactionDialogMaker.FactionDialogFor))]
 #endif
     public static class FactionDialogMakerPatch
